@@ -1,0 +1,551 @@
+Program.Sub.ScreenSU.Start
+Gui.F_UsageDash..Create
+Gui.F_UsageDash..Caption("Slow Moving Inventory Dashboard")
+Gui.F_UsageDash..Size(19065,12450)
+Gui.F_UsageDash..MinX(15360)
+Gui.F_UsageDash..MinY(10695)
+Gui.F_UsageDash..Position(0,0)
+Gui.F_UsageDash..BackColor(-2147483633)
+Gui.F_UsageDash..MousePointer(0)
+Gui.F_UsageDash..Event(UnLoad,Unload)
+Gui.F_UsageDash.gsgcSlow.Create(GsGridControl)
+Gui.F_UsageDash.gsgcSlow.Size(18375,10650)
+Gui.F_UsageDash.gsgcSlow.Position(240,1050)
+Gui.F_UsageDash.gsgcSlow.Anchor(15)
+Gui.F_UsageDash.dtpCutoff.Create(DatePicker)
+Gui.F_UsageDash.dtpCutoff.Size(1935,285)
+Gui.F_UsageDash.dtpCutoff.Position(330,465)
+Gui.F_UsageDash.lbl1.Create(Label,"Cutoff Date",True,1935,255,0,315,225,True,0,"Arial",8,-2147483633,0)
+Gui.F_UsageDash.chk24Months.Create(CheckBox)
+Gui.F_UsageDash.chk24Months.Size(2235,360)
+Gui.F_UsageDash.chk24Months.Position(2700,570)
+Gui.F_UsageDash.chk24Months.Caption("Calculate past 24 months")
+Gui.F_UsageDash.chk24Months.Event(Click,RangeSelection)
+Gui.F_UsageDash.chk12Months.Create(CheckBox)
+Gui.F_UsageDash.chk12Months.Size(2460,360)
+Gui.F_UsageDash.chk12Months.Position(2715,165)
+Gui.F_UsageDash.chk12Months.Caption("Calculate past 12 months")
+Gui.F_UsageDash.chk12Months.Value(1)
+Gui.F_UsageDash.chk12Months.Event(Click,RangeSelection)
+Gui.F_UsageDash.cmdRefresh.Create(Button)
+Gui.F_UsageDash.cmdRefresh.Size(855,375)
+Gui.F_UsageDash.cmdRefresh.Position(5100,525)
+Gui.F_UsageDash.cmdRefresh.Caption("REFRESH")
+Gui.F_UsageDash.cmdRefresh.Event(Click,Refresh)
+Gui.F_UsageDash.cmdExport.Create(Button)
+Gui.F_UsageDash.cmdExport.Size(855,375)
+Gui.F_UsageDash.cmdExport.Position(6090,525)
+Gui.F_UsageDash.cmdExport.Caption("Export")
+Gui.F_UsageDash.cmdExport.Event(Click,Export)
+Gui.F_UsageDash.pbProcess.Create(ProgressBar)
+Gui.F_UsageDash.pbProcess.Size(3735,255)
+Gui.F_UsageDash.pbProcess.Position(8235,540)
+Gui.F_UsageDash.pbProcess.Visible(False)
+Gui.F_UsageDash.lblProg.Create(Label,"Label",False,3705,255,0,8265,270,True,0,"Arial",8,-2147483633,0)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Programmer: FEQ (Sisco)
+'Date: 7/31/2002
+'Customer: Prefix Corporation
+
+'This is a dashboard that will work as an exporting report for them to send their bank for inventory usage information.
+'The columns for the dashboard are: Part, Location, Description, PL, Qty on hand, Usage (12 or 24 months), Price, Unit Cost, Ext. Cost.
+'The Dashboard will not populate with data until the user selects a cutoff date, a range, and clicks on the refresh button
+
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.CallSub(Generate)
+Gui.F_UsageDash..Show
+
+F.Intrinsic.Control.Catch
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.Error.Start
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.Catch
+F.Intrinsic.Control.EndTry
+Program.Sub.Error.End
+
+Program.Sub.Unload.Start
+F.Intrinsic.Control.Try
+
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+F.Intrinsic.Control.EndTry
+Program.Sub.Unload.End
+
+Program.Sub.Generate.Start
+F.Intrinsic.Control.Try
+
+'In theory this should only run once, before the screen is shown. We are just going to make sure the grid is loaded and default values are set
+F.Intrinsic.Control.BlockEvents
+
+Gui.F_UsageDash.chk12Months.Value(True)
+
+F.Data.DataTable.Create("dtInvGrid", True)
+
+F.Data.DataTable.AddColumn("dtInvGrid", "Part", "String")
+F.Data.DataTable.AddColumn("dtInvGrid", "Location", "String")
+F.Data.DataTable.AddColumn("dtInvGrid", "PartLoc", "String")
+F.Data.DataTable.AddColumn("dtInvGrid", "Needed", "String")
+F.Data.DataTable.AddColumn("dtInvGrid", "Description", "String")
+F.Data.DataTable.AddColumn("dtInvGrid", "Product_Line", "String")
+F.Data.DataTable.AddColumn("dtInvGrid", "Code_Sort", "String")
+F.Data.DataTable.AddColumn("dtInvGrid", "Qty_Onhand", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "Amt_Price", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "TotalUsage", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "PosUsage", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "Qty_Diff", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "Ext_Cost", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "Cutoff_Cost", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "Cutoff_OnHand", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "Code_A50", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "Code_C52", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "Code_J55", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "Code_O35", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "Code_R10", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "Code_R11", "Float")
+F.Data.DataTable.AddColumn("dtInvGrid", "Code_W10", "Float")
+
+F.Intrinsic.Control.CallSub(GridProperties)
+
+F.Intrinsic.Control.UnBlockEvents
+
+F.Intrinsic.Control.Catch
+
+F.Intrinsic.Control.UnBlockEvents
+
+F.Intrinsic.Control.EndTry
+Program.Sub.Generate.End
+
+Program.Sub.RangeSelection.Start
+F.Intrinsic.Control.Try
+V.Local.bCheck.Declare(Boolean, False)
+
+'If they check a value, we want to make sure the other is unchecked...
+F.Intrinsic.Control.BlockEvents
+
+F.Intrinsic.Control.If(V.Args.ControlName.UCase, =, "CHK24MONTHS")
+	V.Local.bCheck.Set(V.Screen.F_UsageDash!chk24Months.Value)
+	Gui.F_UsageDash.chk12Months.Value(V.Local.bCheck.Not)
+F.Intrinsic.Control.Else
+	V.Local.bCheck.Set(V.Screen.F_UsageDash!chk12Months.Value)
+	Gui.F_UsageDash.chk24Months.Value(V.Local.bCheck.Not)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.UnBlockEvents
+
+F.Intrinsic.Control.Catch
+
+F.Intrinsic.Control.UnBlockEvents
+
+F.Intrinsic.Control.EndTry
+Program.Sub.RangeSelection.End
+
+Program.Sub.Refresh.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare(String, "")
+V.Local.sSql.Declare(String, "")
+V.Local.dPast.Declare(String, "")
+
+Gui.F_UsageDash.gsgcSlow.SuspendLayout
+Gui.F_UsageDash.gsgcSlow.Visible(False)
+Gui.F_UsageDash.cmdExport.Enabled(False)
+Gui.F_UsageDash.cmdRefresh.Enabled(False)
+Gui.F_UsageDash.dtpCutoff.Enabled(False)
+Gui.F_UsageDash.chk12Months.Enabled(False)
+Gui.F_UsageDash.chk24Months.Enabled(False)
+
+Gui.F_UsageDash.lblProg.Text("Gathering basic inventory information.")
+Gui.F_UsageDash.lblProg.Visible(True)
+Gui.F_UsageDash.pbProcess.Visible(True)
+
+F.ODBC.Connection!conx.OpenCompanyConnection(5000)
+
+'We wanna grab all eligible data from the inventory master table. They did not want to see any inventory that has been added to Global Shop within the past 12 months
+F.Intrinsic.Date.DateAdd("M", -12, V.Ambient.Now, V.Local.dPast)
+F.Intrinsic.String.Build("Select Part + '-' + Location as Partloc, Part from V_INVENTORY_MST3 where Part_create_date <= '{0}'", V.Local.dPast.PervasiveDate, V.Local.sSql)
+F.Data.Dictionary.CreateFromSQL("dicNeededParts", "conx", V.Local.sSql)
+F.Data.Dictionary.SetDefaultReturn("dicNeededParts", "*!*")
+
+'Product lines 'ZC', 'ZS', 'ZT' were not wanted in the report
+F.Data.DataTable.CreateFromSQL("dtAllParts", "conx", "Select Part, Location, Part + '-' + Location as PartLoc, Description, Product_Line, Code_Sort, Qty_Onhand, Amt_Price from V_INVENTORY_MSTR where Product_Line not in ('ZC', 'ZS', 'ZT')", True)
+F.Data.DataTable.AddColumn("dtAllParts", "Needed", "String")
+
+F.Data.DataTable.FillFromDictionary("dtAllParts", "dicNeededParts", "PartLoc", "Needed")
+
+F.Data.DataView.Create("dtAllParts", "dvNeeded", 22, "[Needed] <> '*!*'", "")
+
+F.Data.DataView.ToDataTable("dtAllParts", "dvNeeded", "dtGoodINV", True)
+
+F.Data.Dictionary.Close("dicNeededParts")
+F.Data.DataView.Close("dtAllParts", "dvNeeded")
+F.Data.DataTable.Close("dtAllParts")
+
+F.Intrinsic.Control.CallSub(UsageInfo)
+
+'now we just calculate the total usage and the extended cost
+F.Data.DataTable.AddExpressionColumn("dtGoodINV", "TotalUsage", "Float", "[Code_A50] + [Code_C52] + [Code_J55] + [Code_O35] + [Code_R10] + [Code_R11] + [Code_W10]")
+F.Data.DataTable.AddExpressionColumn("dtGoodINV", "PosUsage", "Float", "-[TotalUsage]")
+F.Data.DataTable.AddExpressionColumn("dtGoodINV", "Qty_Diff", "Float", "[Cutoff_OnHand] - [PosUsage]")
+F.Data.DataTable.AddExpressionColumn("dtGoodINV", "Ext_Cost", "Float", "([Qty_Diff]*[Cutoff_Cost])")
+
+'And last step, get rid of anything that has a zero or below value in the Extended Cost field
+F.Data.DataView.Create("dtGoodINV", "dvFinal", 22, "Ext_Cost > 0 and Cutoff_OnHand > 0", "")
+
+F.Intrinsic.Control.If(V.DataTable.dtInvGrid.Exists, =, True)
+	F.Data.DataTable.Close("dtInvGrid")
+F.Intrinsic.Control.EndIf
+
+F.Data.DataView.ToDataTable("dtGoodINV", "dvFinal", "dtInvGrid", True)
+
+F.Data.DataView.Close("dtGoodINV", "dvFinal")
+F.Data.DataTable.Close("dtGoodINV")
+
+F.ODBC.Connection!conx.Close
+
+F.Intrinsic.Control.CallSub(GridProperties)
+
+Gui.F_UsageDash.gsgcSlow.ResumeLayout
+Gui.F_UsageDash.gsgcSlow.Visible(True)
+Gui.F_UsageDash.cmdExport.Enabled(True)
+Gui.F_UsageDash.cmdRefresh.Enabled(True)
+Gui.F_UsageDash.dtpCutoff.Enabled(True)
+Gui.F_UsageDash.chk12Months.Enabled(True)
+Gui.F_UsageDash.chk24Months.Enabled(True)
+Gui.F_UsageDash.lblProg.Visible(False)
+Gui.F_UsageDash.pbProcess.Visible(False)
+
+F.Intrinsic.Control.Catch
+
+F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}", V.Caller.ScriptFile, V.Ambient.Newline, V.Ambient.CurrentSubroutine, V.Ambient.ErrorNumber, V.Ambient.ErrorDescription, V.Ambient.GABVersion, V.Local.sError)
+F.Intrinsic.UI.Msgbox(V.Local.sError, "Error")
+
+Gui.F_UsageDash.gsgcSlow.ResumeLayout
+Gui.F_UsageDash.gsgcSlow.Visible(True)
+Gui.F_UsageDash.cmdExport.Enabled(True)
+Gui.F_UsageDash.cmdRefresh.Enabled(True)
+Gui.F_UsageDash.dtpCutoff.Enabled(True)
+Gui.F_UsageDash.chk12Months.Enabled(True)
+Gui.F_UsageDash.chk24Months.Enabled(True)
+Gui.F_UsageDash.lblProg.Visible(False)
+Gui.F_UsageDash.pbProcess.Visible(False)
+
+F.Intrinsic.Control.EndTry
+Program.Sub.Refresh.End
+
+Program.Sub.GridProperties.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare(String, "")
+V.Local.sUsage.Declare(String, "")
+
+F.Intrinsic.Control.If(V.Screen.F_UsageDash!chk12Months.Value, =, "1")
+	V.Local.sUsage.Set("Usage (12 Months)")
+F.Intrinsic.Control.Else
+	V.Local.sUsage.Set("Usage (24 Months)")
+F.Intrinsic.Control.EndIf
+
+Gui.F_UsageDash.lblProg.Text("Applying column properties")
+
+Gui.F_UsageDash.gsgcSlow.AddGridviewFromDatatable("gridInv", "dtInvGrid")
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "PartLoc", "Visible", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Needed", "Visible", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Qty_Onhand", "Visible", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_A50", "Visible", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_C52", "Visible", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_J55", "Visible", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_O35", "Visible", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_R10", "Visible", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_R11", "Visible", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_W10", "Visible", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Qty_Diff", "Visible", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "TotalUsage", "Visible", False)
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_A50", "Caption", "A50")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_C52", "Caption", "C52")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_J55", "Caption", "J55")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_O35", "Caption", "O35")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_R10", "Caption", "R10")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_R11", "Caption", "R11")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_W10", "Caption", "W10")
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_A50", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_C52", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_J55", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_O35", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_R10", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_R11", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_W10", "ReadOnly", True)
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_A50", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_C52", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_J55", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_O35", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_R10", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_R11", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_W10", "HeaderFontBold", True)
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_A50", "HeaderHAlignment", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_C52", "HeaderHAlignment", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_J55", "HeaderHAlignment", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_O35", "HeaderHAlignment", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_R10", "HeaderHAlignment", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_R11", "HeaderHAlignment", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_W10", "HeaderHAlignment", True)
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Part", "Caption", "Part")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Location", "Caption", "Loc")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Description", "Caption", "Description")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Product_Line", "Caption", "PL")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_Sort", "Caption", "Sort Code")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_OnHand", "Caption", "Qty On Hand")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "PosUsage", "Caption", V.Local.sUsage)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Amt_Price", "Caption", "Price")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_Cost", "Caption", "Unit Cost")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Ext_Cost", "Caption", "Ext. Cost")
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Part", "Width", 75)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Location", "Width", 20)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Description", "Width", 150)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Product_Line", "Width", 20)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_Sort", "Width", 65)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_OnHand", "Width", 60)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "PosUsage", "Width", 70)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Amt_Price", "Width", 60)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_Cost", "Width", 60)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Ext_Cost", "Width", 60)
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Part", "VisibleIndex", 1)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Location", "VisibleIndex", 2)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Description", "VisibleIndex", 3)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Product_Line", "VisibleIndex", 4)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_Sort", "VisibleIndex", 5)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_OnHand", "VisibleIndex", 6)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "PosUsage", "VisibleIndex", 7)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Amt_Price", "VisibleIndex", 8)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_Cost", "VisibleIndex", 9)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Ext_Cost", "VisibleIndex", 10)
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Part", "AllowEdit", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Location", "AllowEdit", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Description", "AllowEdit", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Product_Line", "AllowEdit", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_Sort", "AllowEdit", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_OnHand", "AllowEdit", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "PosUsage", "AllowEdit", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Amt_Price", "AllowEdit", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_Cost", "AllowEdit", False)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Ext_Cost", "AllowEdit", False)
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Part", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Location", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Description", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Product_Line", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_Sort", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_OnHand", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "PosUsage", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Amt_Price", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_Cost", "ReadOnly", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Ext_Cost", "ReadOnly", True)
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Part", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Location", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Description", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Product_Line", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_Sort", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_OnHand", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "PosUsage", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Amt_Price", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_Cost", "HeaderFontBold", True)
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Ext_Cost", "HeaderFontBold", True)
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Part", "HeaderHAlignment", "Center")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Location", "HeaderHAlignment", "Center")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Description", "HeaderHAlignment", "Center")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Product_Line", "HeaderHAlignment", "Center")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Code_Sort", "HeaderHAlignment", "Center")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_OnHand", "HeaderHAlignment", "Center")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "PosUsage", "HeaderHAlignment", "Center")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Amt_Price", "HeaderHAlignment", "Center")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_Cost", "HeaderHAlignment", "Center")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Ext_Cost", "HeaderHAlignment", "Center")
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Location", "CellHAlignment", "Center")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Product_Line", "CellHAlignment", "Center")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "PosUsage", "CellHAlignment", "Center")
+
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_OnHand", "DisplayCustomNumeric", "#,###,###,##0.0000")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Amt_Price", "DisplayCustomNumeric", "#,###,###,##0.0000")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Cutoff_Cost", "DisplayCustomNumeric", "#,###,###,##0.0000")
+Gui.F_UsageDash.gsgcSlow.SetColumnProperty("gridInv", "Ext_Cost", "DisplayCustomNumeric", "#,###,###,##0.0000")
+
+Gui.F_UsageDash.gsgcSlow.MainView("gridInv")
+
+F.Intrinsic.Control.Catch
+F.Intrinsic.Control.EndTry
+Program.Sub.GridProperties.End
+
+Program.Sub.UsageInfo.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare(String, "")
+V.Local.sSql.Declare(String, "")
+V.Local.sFilter.Declare(String, "")
+V.Local.sMessage.Declare(String, "")
+V.Local.fCost.Declare(Float, 0.00)
+V.Local.fOnHand.Declare(Float, 0.00)
+V.Local.fA50.Declare(Float, 0.00)
+V.Local.fC52.Declare(Float, 0.00)
+V.Local.fJ55.Declare(Float, 0.00)
+V.Local.fO35.Declare(Float, 0.00)
+V.Local.fR10.Declare(Float, 0.00)
+V.Local.fR11.Declare(Float, 0.00)
+V.Local.fW10.Declare(Float, 0.00)
+V.Local.iCount.Declare(Long, 0)
+V.Local.dStart.Declare(Date, "01/01/1900")
+V.Local.dCutoff.Declare(Date, "01/01/1900")
+
+V.Local.dCutoff.Set(V.Screen.F_UsageDash!dtpCutoff.Value)
+
+Gui.F_UsageDash.lblProg.Text("Gathering inventory history records for selected criteria.")
+
+F.Intrinsic.Control.If(V.Screen.F_UsageDash!chk12Months.Value, =, "1")
+	F.Intrinsic.Date.DateAdd("M", -12, V.Local.dCutoff, V.Local.dStart)
+	F.Intrinsic.Date.DateAdd("D", 1, V.Local.dStart, V.Local.dStart)
+F.Intrinsic.Control.Else
+	F.Intrinsic.Date.DateAdd("M", -24, V.Local.dCutoff, V.Local.dStart)
+	F.Intrinsic.Date.DateAdd("D", 1, V.Local.dStart, V.Local.dStart)
+F.Intrinsic.Control.EndIf
+
+'We want to calculate the usage of parts with the cutoff date
+F.Intrinsic.String.Build("Select Part, Location, Date_History, Code_Transaction, New_OnHand, New_Inv_Cost, Cost, Quantity, Ignore_for_Usage, Date_Action from V_INVENTORY_HIST where Date_Action <= '{0}' and Date_Action >= '{1}' order by Date_action DESC", V.Local.dCutoff.PervasiveDate, V.Local.dStart.PervasiveDate, V.Local.sSql)
+
+F.Data.DataTable.CreateFromSQL("dtFullHist", "conx", V.Local.sSql, True)
+
+F.Data.DataTable.AddColumn("dtGoodINV", "Cutoff_Cost", "Float")
+F.Data.DataTable.AddColumn("dtGoodINV", "Cutoff_OnHand", "Float")
+F.Data.DataTable.AddColumn("dtGoodINV", "Code_A50", "Float")
+F.Data.DataTable.AddColumn("dtGoodINV", "Code_C52", "Float")
+F.Data.DataTable.AddColumn("dtGoodINV", "Code_J55", "Float")
+F.Data.DataTable.AddColumn("dtGoodINV", "Code_O35", "Float")
+F.Data.DataTable.AddColumn("dtGoodINV", "Code_R10", "Float")
+F.Data.DataTable.AddColumn("dtGoodINV", "Code_R11", "Float")
+F.Data.DataTable.AddColumn("dtGoodINV", "Code_W10", "Float")
+
+F.Intrinsic.String.Build("Processing history records for {0} inventory parts.", V.DataTable.dtGoodINV.RowCount, V.Local.sMessage)
+Gui.F_UsageDash.lblProg.Text(V.Local.sMessage)
+Gui.F_UsageDash.pbProcess.Min(0)
+Gui.F_UsageDash.pbProcess.Max(V.DataTable.dtGoodINV.RowCount)
+
+'Now we just have to loop through the table for each part and make all appropriate calculations...
+F.Intrinsic.Control.For(V.Local.iCount, 0, V.DataTable.dtGoodINV.RowCount--, 1)
+	
+	Gui.F_UsageDash.pbProcess.Value(V.Local.iCount)
+	
+	'For the Cutoff Cost and Cutoff On Hand we just filter by part and use the most recent entry
+	F.Intrinsic.String.Build("[Part] = '{0}' and [Location] = '{1}'", V.DataTable.dtGoodINV(V.Local.iCount).Part!FieldValTrim, V.DataTable.dtGoodINV(V.Local.iCount).Location!FieldValTrim, V.Local.sFilter)
+	F.Data.DataView.Create("dtFullHist", "dvCutoff", 22, V.Local.sFilter, "Date_Action DESC")
+	
+	F.Intrinsic.Control.If(V.DataView.dtFullHist!dvCutoff.RowCount, >, 0)
+		V.Local.fCost.Set(V.DataView.dtFullHist!dvCutoff(0).New_Inv_Cost!FieldValFloat)
+		V.Local.fOnHand.Set(V.DataView.dtFullHist!dvCutoff(0).New_OnHand!FieldValFloat)
+		
+		'A50 sum
+		F.Intrinsic.String.Build("[Part] = '{0}' and [Location] = '{1}' and [Code_Transaction] = 'A50' and [Ignore_for_Usage] = False", V.DataTable.dtGoodINV(V.Local.iCount).Part!FieldValTrim, V.DataTable.dtGoodINV(V.Local.iCount).Location!FieldValTrim, V.Local.sFilter)
+		F.Data.DataTable.Compute("dtFullHist", "SUM(Quantity)", V.Local.sFilter, V.Local.fA50)
+		
+		'C52 sum
+		F.Intrinsic.String.Build("[Part] = '{0}' and [Location] = '{1}' and [Code_Transaction] = 'C52' and [Ignore_for_Usage] = False", V.DataTable.dtGoodINV(V.Local.iCount).Part!FieldValTrim, V.DataTable.dtGoodINV(V.Local.iCount).Location!FieldValTrim, V.Local.sFilter)
+		F.Data.DataTable.Compute("dtFullHist", "SUM(Quantity)", V.Local.sFilter, V.Local.fC52)
+		
+		'J55 sum
+		F.Intrinsic.String.Build("[Part] = '{0}' and [Location] = '{1}' and [Code_Transaction] = 'J55' and [Ignore_for_Usage] = False", V.DataTable.dtGoodINV(V.Local.iCount).Part!FieldValTrim, V.DataTable.dtGoodINV(V.Local.iCount).Location!FieldValTrim, V.Local.sFilter)
+		F.Data.DataTable.Compute("dtFullHist", "SUM(Quantity)", V.Local.sFilter, V.Local.fJ55)
+		
+		'O35 sum
+		F.Intrinsic.String.Build("[Part] = '{0}' and [Location] = '{1}' and [Code_Transaction] = 'O35' and [Ignore_for_Usage] = False", V.DataTable.dtGoodINV(V.Local.iCount).Part!FieldValTrim, V.DataTable.dtGoodINV(V.Local.iCount).Location!FieldValTrim, V.Local.sFilter)
+		F.Data.DataTable.Compute("dtFullHist", "SUM(Quantity)", V.Local.sFilter, V.Local.fO35)
+		
+		'R10 sum
+		F.Intrinsic.String.Build("[Part] = '{0}' and [Location] = '{1}' and [Code_Transaction] = 'R10' and [Ignore_for_Usage] = False", V.DataTable.dtGoodINV(V.Local.iCount).Part!FieldValTrim, V.DataTable.dtGoodINV(V.Local.iCount).Location!FieldValTrim, V.Local.sFilter)
+		F.Data.DataTable.Compute("dtFullHist", "SUM(Quantity)", V.Local.sFilter, V.Local.fR10)
+		
+		'R11 sum
+		F.Intrinsic.String.Build("[Part] = '{0}' and [Location] = '{1}' and [Code_Transaction] = 'R11' and [Ignore_for_Usage] = False", V.DataTable.dtGoodINV(V.Local.iCount).Part!FieldValTrim, V.DataTable.dtGoodINV(V.Local.iCount).Location!FieldValTrim, V.Local.sFilter)
+		F.Data.DataTable.Compute("dtFullHist", "SUM(Quantity)", V.Local.sFilter, V.Local.fR11)
+		
+		'W10 sum
+		F.Intrinsic.String.Build("[Part] = '{0}' and [Location] = '{1}' and [Code_Transaction] = 'W10' and [Ignore_for_Usage] = False", V.DataTable.dtGoodINV(V.Local.iCount).Part!FieldValTrim, V.DataTable.dtGoodINV(V.Local.iCount).Location!FieldValTrim, V.Local.sFilter)
+		F.Data.DataTable.Compute("dtFullHist", "SUM(Quantity)", V.Local.sFilter, V.Local.fW10)
+		
+		F.Data.DataTable.SetValue("dtGoodINV", V.Local.iCount, "Cutoff_Cost", V.Local.fCost, "Cutoff_OnHand", V.Local.fOnHand, "Code_A50", V.Local.fA50, "Code_C52", V.Local.fC52, "Code_J55", V.Local.fJ55, "Code_O35", V.Local.fO35, "Code_R10", V.Local.fR10, "Code_R11", V.Local.fR11, "Code_W10", V.Local.fW10)
+		
+	F.Intrinsic.Control.Else
+		'We are going to have to figure out what the most recent cutoff cost and cutoff on hand was, so we will have to query the database again unfortunately.
+		F.Intrinsic.String.Build("Select Top 1 New_Inv_Cost, New_OnHand from V_INVENTORY_HIST where PART = '{0}' and LOCATION = '{1}' and Date_Action < '{2}' order by Date_Action Desc", V.DataTable.dtGoodINV(V.Local.iCount).Part!FieldValTrim, V.DataTable.dtGoodINV(V.Local.iCount).Location!FieldValTrim, V.Local.dStart.PervasiveDate, V.Local.sSql)
+		
+		F.Data.DataTable.CreateFromSQL("dtNoUsage", "conx", V.Local.sSql)
+		F.Intrinsic.Control.If(V.DataTable.dtNoUsage.RowCount, >, 0)
+			V.Local.fCost.Set(V.DataTable.dtNoUsage(0).New_Inv_Cost!FieldValFloat)
+			V.Local.fOnHand.Set(V.DataTable.dtNoUsage(0).New_OnHand!FieldValFloat)
+		F.Intrinsic.Control.Else
+			V.Local.fCost.Set(0)
+			V.Local.fOnHand.Set(0)
+		F.Intrinsic.Control.EndIf
+		F.Data.DataTable.Close("dtNoUsage")
+		
+		F.Data.DataTable.SetValue("dtGoodINV", V.Local.iCount, "Cutoff_Cost", V.Local.fCost, "Cutoff_OnHand", V.Local.fOnHand, "Code_A50", 0, "Code_C52", 0, "Code_J55", 0, "Code_O35", 0, "Code_R10", 0, "Code_R11", 0, "Code_W10", 0)
+	F.Intrinsic.Control.EndIf
+	
+	F.Data.DataView.Close("dtFullHist", "dvCutoff")
+	
+F.Intrinsic.Control.Next(V.Local.iCount)
+
+Gui.F_UsageDash.pbProcess.Value(V.DataTable.dtGoodINV.RowCount)
+
+F.Data.DataTable.Close("dtFullHist")
+
+F.Intrinsic.Control.Catch
+
+F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}", V.Caller.ScriptFile, V.Ambient.Newline, V.Ambient.CurrentSubroutine, V.Ambient.ErrorNumber, V.Ambient.ErrorDescription, V.Ambient.GABVersion, V.Local.sError)
+F.Intrinsic.UI.Msgbox(V.Local.sError, "Error")
+
+F.Intrinsic.Control.EndTry
+Program.Sub.UsageInfo.End
+
+Program.Sub.Export.Start
+F.Intrinsic.Control.Try
+V.Local.sError.Declare(String, "")
+V.Local.sExport.Declare(String, "")
+V.Local.sMessage.Declare(String, "")
+V.Local.sCheck.Declare(String, "")
+
+F.Intrinsic.UI.ShowSaveFileDialog("Slow Moving Inventory.xlsx", ".", V.Local.sExport)
+
+F.Intrinsic.Control.If(V.Local.sExport, <>, "***CANCEL***")
+	
+	F.Intrinsic.String.Split(V.Local.sExport, ".", V.Local.sCheck)
+	F.Intrinsic.Control.If(V.Local.sCheck(V.Local.sCheck.UBound).UCase, <>, "XLSX")
+		F.Intrinsic.String.Build("{0}.xlsx", V.Local.sExport, V.Local.sExport)
+	F.Intrinsic.Control.EndIf
+	
+	Gui.F_UsageDash.gsgcSlow.Export(V.Local.sExport, "xlsx")
+	F.Intrinsic.String.Build("Inventory Usage has been exported to:{0}{0}{1}", V.Ambient.NewLine, V.Local.sExport, V.Local.sMessage)
+	F.Intrinsic.UI.Msgbox(V.Local.sMessage, "DATA EXPORT COMPLETED")
+	
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+
+F.Intrinsic.String.Build("Project: {0}{1}{1}Subroutine: {2}{1}Error Occurred {3} with description {4}{1}{1}GAB Version: {5}", V.Caller.ScriptFile, V.Ambient.Newline, V.Ambient.CurrentSubroutine, V.Ambient.ErrorNumber, V.Ambient.ErrorDescription, V.Ambient.GABVersion, V.Local.sError)
+F.Intrinsic.UI.Msgbox(V.Local.sError, "Error")
+
+F.Intrinsic.Control.EndTry
+Program.Sub.Export.End
